@@ -1,69 +1,13 @@
-import {
-    GraphQLSchema,
-    GraphQLString,
-    GraphQLFloat,
-    GraphQLInt,
-    GraphQLBoolean,
-    GraphQLObjectType,
-    GraphQLList,
-} from 'graphql';
+import { GraphQLSchema, GraphQLObjectType, GraphQLList, GraphQLString, GraphQLNonNull } from 'graphql';
 
-import { MemberTypeId } from './types/memberTypeId.js';
+import { MemberTypeId, MemberType } from './types/memberType.js';
 import { UUIDType } from './types/uuid.js';
+import { PostType, CreatePostInput, ChangePostInput } from './types/post.js';
+import { ChangeProfileInput, CreateProfileInput, ProfileType } from './types/profile.js';
+import { ChangeUserInput, CreateUserInput, UserType } from './types/user.js';
 
 
-const MemberType = new GraphQLObjectType({
-    name: 'MemberType',
-    fields: {
-        id: { type: MemberTypeId },
-        discount: { type: GraphQLFloat },
-        postsLimitPerMonth: { type: GraphQLInt }
-    },
-});
-
-const ProfileType = new GraphQLObjectType({
-    name: 'Profile',
-    fields: {
-        id: { type: UUIDType },
-        isMale: { type: GraphQLBoolean },
-        yearOfBirth: { type: GraphQLInt },
-        userId: { type: UUIDType },
-        memberTypeId: { type: MemberTypeId },
-        memberType: { type: MemberType },
-    },
-});
-
-const PostType = new GraphQLObjectType({
-    name: 'Post',
-    fields: {
-        id: { type: UUIDType },
-        title: { type: GraphQLString },
-        content: { type: GraphQLString },
-        authorId: { type: UUIDType },
-    },
-});
 /* eslint-disable */
-const UserType = new GraphQLObjectType({
-    name: 'User',
-    fields: () => ({
-        id: { type: UUIDType },
-        name: { type: GraphQLString },
-        balance: { type: GraphQLFloat },
-        profile: { type: ProfileType },
-        posts: { type: new GraphQLList(PostType) },
-        userSubscribedTo: {
-            type: new GraphQLList(UserType),
-            resolve: async ({ id }, _, { prisma } ) =>
-                await prisma.user.findMany({ where: { subscribedToUser: { some: { subscriberId: id } } } }),
-        },
-        subscribedToUser: {
-            type: new GraphQLList(UserType),
-            resolve: async ({ id }, _, { prisma } ) =>
-                await prisma.user.findMany({ where: { userSubscribedTo: { some: { authorId: id } } } }),
-        },
-    }),
-});
-
 const QueryType = new GraphQLObjectType({
     name: 'Query',
     fields: {
@@ -114,9 +58,103 @@ const QueryType = new GraphQLObjectType({
     },
 });
 
+const MutationType = new GraphQLObjectType({
+    name: 'Mutation',
+    fields: {
+        // Post
+        createPost: {
+            type: PostType,
+            args: {
+                dto: { type: CreatePostInput },
+            },
+            resolve: ({ createPost }, { dto }, { prisma }) => createPost({ dto }, { prisma }),
+        },
+        changePost: {
+            type: PostType,
+            args: {
+                id: { type: UUIDType },
+                dto: { type: ChangePostInput },
+            },
+            resolve: ({ changePost }, { id, dto }, { prisma }) => changePost({ id, dto }, { prisma }),
+        },
+        deletePost: {
+            type: GraphQLString,
+            args: {
+                id: { type: UUIDType },
+            },
+            resolve: ({ deletePost }, { id }, { prisma }) => deletePost({ id }, { prisma }),
+        },
+
+        // User
+        createUser: {
+            type: UserType,
+            args: {
+                dto: { type: CreateUserInput },
+            },
+            resolve: ({ createUser }, { dto }, { prisma }) => createUser({ dto }, { prisma }),
+        },
+        changeUser: {
+            type: UserType,
+            args: {
+                id: { type: UUIDType },
+                dto: { type: ChangeUserInput },
+            },
+            resolve: ({ changeUser }, { id, dto }, { prisma }) => changeUser({ id, dto }, { prisma }),
+        },
+        deleteUser: {
+            type: GraphQLString,
+            args: {
+                id: { type: UUIDType },
+            },
+            resolve: ({ deleteUser }, { id }, { prisma }) => deleteUser({ id }, { prisma }),
+        },
+
+        // Profile
+        createProfile: {
+            type: ProfileType,
+            args: {
+                dto: { type: CreateProfileInput },
+            },
+            resolve: ({ createProfile }, { dto }, { prisma }) => createProfile({ dto }, { prisma }),
+        },
+        changeProfile: {
+            type: ProfileType,
+            args: {
+                id: { type: UUIDType },
+                dto: { type: new GraphQLNonNull(ChangeProfileInput) },
+            },
+            resolve: ({ changeProfile }, { id, dto }, { prisma }) => changeProfile({ id, dto }, { prisma }),
+        },
+        deleteProfile: {
+            type: GraphQLString,
+            args: {
+                id: { type: UUIDType },
+            },
+            resolve: ({ deleteProfile }, { id }, { prisma }) => deleteProfile({ id }, { prisma }),
+        },
+        subscribeTo: {
+            type: UserType,
+            args: {
+                userId: { type: UUIDType },
+                authorId: { type: UUIDType },
+            },
+            resolve: ({ subscribeTo }, args, { prisma }) => subscribeTo(args, { prisma }),
+        },
+        unsubscribeFrom: {
+            type: GraphQLString,
+            args: {
+                userId: { type: UUIDType },
+                authorId: { type: UUIDType },
+            },
+            resolve: ({ unsubscribeFrom }, args, { prisma }) => unsubscribeFrom(args, { prisma }),
+        }
+    },
+});
+
 const schema = new GraphQLSchema({
     query: QueryType,
     types: [UserType],
+    mutation: MutationType,
 });
 
 export default schema;
